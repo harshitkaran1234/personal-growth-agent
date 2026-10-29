@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "personal-growth-agent"
+version = "0.1.0"
+description = "Backend for the Personal Growth Agent: an AI coach for goals, commitments and progress"
+authors = ["Harshit Karan <harshit@thekasper.ai>"]
+readme = "README.md"
+packages = [{ include = "personal_growth_agent" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.116.1"
+uvicorn = "^0.38.0"
+gunicorn = "^23.0.0"
+pydantic = "^2.11.3"
+pydantic-settings = "^2.9.1"
+python-dotenv = "^1.0.1"
+ecs-logging = "^2.2.0"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+mypy = "^1.11.2"
+pytest = "^8.3.4"
+pytest-asyncio = "^0.25.3"
+httpx = "^0.28.1"
+black = "^25.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+disallow_untyped_defs = true
+strict = true
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | build
+  | dist
+  | venv
+  | migrations
+  | __pycache__
+)/
+'''
