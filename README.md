@@ -18,10 +18,26 @@ poetry run python -m personal_growth_agent.script.server
 # http://localhost:8000/docs
 ```
 
+Needs MongoDB on `localhost:27017` (or set `MONGO_CONNECTION_URI`).
+
+## Login
+
+Email OTP. Until AWS SES is integrated, `HARDCODED_OTP=123456` in `.env` makes every code
+`123456` and no email is sent. The app refuses to start with it set when
+`ENVIRONMENT=production`.
+
+```bash
+curl -X POST localhost:8000/v1/auth/email/otp -H 'content-type: application/json' \
+  -d '{"email":"you@example.com"}'
+curl -X POST localhost:8000/v1/auth/email/otp/validate -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","otp":"123456"}'
+# use the returned access_token: Authorization: Bearer <token>
+curl localhost:8000/v1/user/me -H 'Authorization: Bearer <token>'
+```
+
 ## Checks
 
 ```bash
-poetry run pytest
 poetry run black .
 poetry run flake8
 poetry run mypy personal_growth_agent
@@ -36,7 +52,6 @@ personal_growth_agent/
   routes/              one folder per resource (route.py + controller.py)
   schema/              request and response models
   script/server.py     local dev server
-tests/
 ```
 
 `ENVIRONMENT` selects the env file: unset or anything else loads `.env`, `dev*` loads `.dev.env`,

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from personal_growth_agent.common import config, logger
+from personal_growth_agent.database import db_client, ensure_indexes
 
 from .common.exception_handler import (
     base_exception_handler,
@@ -18,10 +19,19 @@ def register_handlers(app: FastAPI) -> None:
     app.add_exception_handler(Exception, base_exception_handler)
 
 
+def check_config() -> None:
+    if config.HARDCODED_OTP and config.ENVIRONMENT == "production":
+        raise RuntimeError("HARDCODED_OTP must not be set in production")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"Starting {config.SERVICE_NAME} ({config.ENVIRONMENT})")
+    check_config()
+    db_client.init()
+    await ensure_indexes()
     yield
+    await db_client.close()
     logger.info(f"Stopping {config.SERVICE_NAME}")
 
 
