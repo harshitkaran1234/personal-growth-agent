@@ -5,7 +5,7 @@ from bson import ObjectId
 from pydantic import Field
 
 from .base import Base
-from .common import Embedded
+from .common import DateStr, Embedded
 from .user import Weekday
 
 
@@ -16,6 +16,7 @@ class GoalType(StrEnum):
 
 
 class GoalStatus(StrEnum):
+    DRAFT = "draft"
     ACTIVE = "active"
     PAUSED = "paused"
     COMPLETED = "completed"
@@ -42,6 +43,13 @@ class AnchoredSlot(Embedded):
     time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
+class Milestone(Embedded):
+    id: ObjectId = Field(default_factory=ObjectId)
+    title: str = Field(min_length=1, max_length=120)
+    due_date: Optional[DateStr] = None
+    completed_at: Optional[int] = None
+
+
 class Goal(Base):
     __collection__ = "goal"
 
@@ -56,5 +64,7 @@ class Goal(Base):
     priority: Optional[int] = Field(default=None, ge=1)
     commitment: Commitment = Field(default_factory=Commitment)
     anchored_slots: list[AnchoredSlot] = Field(default_factory=list)
+    milestones: list[Milestone] = Field(default_factory=list)
+    target_date: Optional[DateStr] = None
     completed_at: Optional[int] = None
     archived_at: Optional[int] = None

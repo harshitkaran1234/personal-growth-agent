@@ -1,5 +1,5 @@
 from .daily_checkin import CheckinEntry, DailyCheckin, EntrySource, EntryStatus
-from .goal import AnchoredSlot, Commitment, CommitmentPeriod, Goal, GoalStatus, GoalType
+from .goal import AnchoredSlot, Commitment, CommitmentPeriod, Goal, GoalStatus, GoalType, Milestone
 from .otp_request import OtpRequest
 from .user import User, Weekday
 from .weekly_checkin import (
@@ -22,6 +22,7 @@ __all__ = [
     "GoalStatus",
     "GoalType",
     "GoalWeekSummary",
+    "Milestone",
     "OtpRequest",
     "PlannedCommitment",
     "PlanStatus",
