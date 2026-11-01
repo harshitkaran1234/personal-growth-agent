@@ -101,7 +101,11 @@ async def main() -> None:
         before = (await store.get(user_id)).pending
         seen = len(await agent.history(thread_for(user_id)))
         context = GoalPlannerContext(user_id=user_id, store=store)
-        reply = await agent.chat(thread_for(user_id), text, context)
+        try:
+            reply = await agent.chat(thread_for(user_id), text, context)
+        except CustomException as error:
+            print(f"\n[error {error.status_code}] {error.detail}\n")
+            continue
         for message in (await agent.history(thread_for(user_id)))[seen:]:
             if isinstance(message, ToolMessage):
                 print(f"\n[tool {message.name}: {message.status}] {message.text[:300]}")

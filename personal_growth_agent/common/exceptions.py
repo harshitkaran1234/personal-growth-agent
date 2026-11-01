@@ -25,3 +25,11 @@ class ResourceNotFoundException(CustomException):
 
 class ResourceAlreadyExistException(CustomException):
     status_code = 409
+
+
+class PlannerFailedException(CustomException):
+    status_code = 500
+
+
+class LLMUnavailableException(CustomException):
+    status_code = 503

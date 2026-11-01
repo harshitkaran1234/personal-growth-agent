@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
 from typing import Optional, TypeVar
 
+import anthropic
+import openai
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -15,6 +17,16 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from personal_growth_agent.llm_models import LLMModel
 
 Prompt = str | list[BaseMessage]
+
+PROVIDER_UNAVAILABLE_ERRORS: tuple[type[Exception], ...] = (
+    anthropic.APIConnectionError,
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+    anthropic.OverloadedError,
+    openai.APIConnectionError,
+    openai.RateLimitError,
+    openai.InternalServerError,
+)
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 
