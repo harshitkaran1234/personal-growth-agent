@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk
 
 from personal_growth_agent.agents import LLMClient, LLMParams
 from personal_growth_agent.common import config  # noqa: F401
+from personal_growth_agent.llm_models import LLMModel
 
 SYSTEM_PROMPT = (
     "You are a friendly goal-planning coach. The user tells you a goal. "
@@ -12,7 +13,6 @@ SYSTEM_PROMPT = (
     "that helps make it concrete."
 )
 DEFAULT_MESSAGE = "I want to master system design in 3 months."
-DEFAULT_MODEL = "anthropic:claude-sonnet-5-5"
 
 
 def print_response(response: AIMessage, seconds: float) -> None:
@@ -48,7 +48,7 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description="Send one message to any LLM.")
     parser.add_argument("message", nargs="?", default=DEFAULT_MESSAGE)
     parser.add_argument(
-        "--model", default=DEFAULT_MODEL, help='"provider:model", e.g. "openai:gpt-5"'
+        "--model", type=LLMModel, choices=list(LLMModel), default=LLMModel.CLAUDE_SONNET_5_5
     )
     parser.add_argument("--temperature", type=float, default=None)
     parser.add_argument("--max-tokens", type=int, default=None)

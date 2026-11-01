@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from typing import Optional
+from typing import Optional, TypeVar
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -12,7 +12,10 @@ from langchain_core.messages import (
 )
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
+from personal_growth_agent.llm_models import LLMModel
+
 Prompt = str | list[BaseMessage]
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 
 class LLMParams(BaseModel):
@@ -28,7 +31,7 @@ class LLMParams(BaseModel):
 class LLMClient(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    model: str = Field(pattern=r"^[a-z_-]+:\S+$")
+    model: LLMModel
     params: LLMParams = Field(default_factory=LLMParams)
 
     _chat_model: Optional[BaseChatModel] = PrivateAttr(default=None)
@@ -45,6 +48,14 @@ class LLMClient(BaseModel):
         response = await self.chat_model.ainvoke(self._messages(prompt, system))
         assert isinstance(response, AIMessage)
         return response
+
+    async def astructured(
+        self, prompt: Prompt, schema: type[SchemaT], system: Optional[str] = None
+    ) -> SchemaT:
+        result = await self.chat_model.with_structured_output(schema).ainvoke(
+            self._messages(prompt, system)
+        )
+        return schema.model_validate(result)
 
     async def astream(
         self, prompt: Prompt, system: Optional[str] = None
