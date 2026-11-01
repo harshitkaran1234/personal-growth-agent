@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, Self
 
 from pydantic import BaseModel, Field, model_validator
@@ -93,9 +93,7 @@ class PlanDraft(BaseModel):
     goals: list[ProposedGoal] = Field(
         min_length=1, max_length=3, description="The goals the user agreed to, 1 to 3."
     )
-    profile: Optional[ProfileDraft] = Field(
-        default=None, description="User settings, or null if they were not agreed in the chat."
-    )
+    profile: ProfileDraft = Field(description="The user's name, reminder time and review day.")
 
     @model_validator(mode="after")
     def check_priorities(self) -> Self:
@@ -103,3 +101,21 @@ class PlanDraft(BaseModel):
         if priorities != list(range(1, len(self.goals) + 1)):
             raise ValueError("Priorities must be 1..n with no gaps or repeats")
         return self
+
+
+class PendingPlan(BaseModel):
+    version: int = Field(ge=1)
+    presented_at: datetime
+    plan: PlanDraft
+
+
+class ConfirmedPlan(BaseModel):
+    version: int = Field(ge=1)
+    confirmed_at: datetime
+    plan: PlanDraft
+
+
+class PlanRecord(BaseModel):
+    user_id: str
+    pending: Optional[PendingPlan] = None
+    confirmed: Optional[ConfirmedPlan] = None

@@ -11,4 +11,5 @@ exclude =
     migrations
 ignore =
     E203,
+    E704,
     W503

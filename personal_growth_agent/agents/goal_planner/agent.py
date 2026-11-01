@@ -14,6 +14,8 @@ from personal_growth_agent.llm_models import LLMModel
 from personal_growth_agent.prompts import GOAL_PLANNER_SYSTEM_PROMPT
 
 from ..llm_client import LLMClient
+from .context import GoalPlannerContext
+from .tools import present_plan
 
 DEFAULT_LLM = LLMClient(model=LLMModel.CLAUDE_SONNET_5_5)
 
@@ -35,15 +37,16 @@ class GoalPlannerAgent(BaseModel):
     def model_post_init(self, context: Any) -> None:
         self._graph = create_agent(
             model=self.llm.chat_model,
-            tools=[],
+            tools=[present_plan],
             middleware=[system_prompt],
+            context_schema=GoalPlannerContext,
             checkpointer=self.checkpointer,
             name="goal_planner",
         )
 
-    async def chat(self, thread_id: str, message: str) -> AIMessage:
+    async def chat(self, thread_id: str, message: str, context: GoalPlannerContext) -> AIMessage:
         result = await self._graph.ainvoke(
-            {"messages": [HumanMessage(message)]}, config=self._config(thread_id)
+            {"messages": [HumanMessage(message)]}, config=self._config(thread_id), context=context
         )
         reply = result["messages"][-1]
         assert isinstance(reply, AIMessage)
