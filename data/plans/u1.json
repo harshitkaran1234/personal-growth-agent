@@ -1,0 +1,66 @@
+{
+  "user_id": "u1",
+  "pending": null,
+  "confirmed": {
+    "version": 1,
+    "confirmed_at": "2026-11-01T15:31:26.127091",
+    "plan": {
+      "goals": [
+        {
+          "title": "Master system design for interviews",
+          "why": "I want to be ready for system design interviews.",
+          "type": "learning",
+          "commitment": {
+            "period": "week",
+            "target": 12.0,
+            "unit": "hours",
+            "sessions": 7,
+            "session": "1 hr study on weekdays, 3.5 hr study on weekends",
+            "minutes": 103
+          },
+          "target_date": "2027-01-31",
+          "milestones": [
+            {
+              "title": "Finish system design fundamentals",
+              "due_date": "2026-11-30"
+            },
+            {
+              "title": "Cover core building blocks and classic system designs",
+              "due_date": "2026-12-31"
+            },
+            {
+              "title": "Start mock interviews",
+              "due_date": "2027-01-15"
+            },
+            {
+              "title": "Interview-ready after mock interview practice",
+              "due_date": "2027-01-31"
+            }
+          ],
+          "priority": 1
+        },
+        {
+          "title": "Gym every day for muscle building",
+          "why": "I want to build muscle.",
+          "type": "habit",
+          "commitment": {
+            "period": "week",
+            "target": 7.0,
+            "unit": "sessions",
+            "sessions": 7,
+            "session": "1 hr gym: 5 lifting days, 2 light days of cardio and abs",
+            "minutes": 60
+          },
+          "target_date": null,
+          "milestones": [],
+          "priority": 2
+        }
+      ],
+      "profile": {
+        "name": "Harshit",
+        "reminder_time": "00:00",
+        "review_day": "sun"
+      }
+    }
+  }
+}

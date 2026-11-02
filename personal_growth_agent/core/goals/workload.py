@@ -1,9 +1,17 @@
 from personal_growth_agent.database.model import CommitmentPeriod
-from personal_growth_agent.schema import GoalLoad, PlanDraft, ProposedGoal, WeeklyLoad
+from personal_growth_agent.schema import (
+    GoalLoad,
+    PlanDraft,
+    PracticeCommitment,
+    ProposedGoal,
+    WeeklyLoad,
+)
 
 
 def goal_weekly_minutes(goal: ProposedGoal) -> int:
     commitment = goal.commitment
+    if not isinstance(commitment, PracticeCommitment) or commitment.minutes is None:
+        return 0
     per_week = 7 if commitment.period == CommitmentPeriod.DAY else 1
     return commitment.sessions * commitment.minutes * per_week
 

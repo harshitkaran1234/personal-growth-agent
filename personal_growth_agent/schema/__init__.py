@@ -1,8 +1,10 @@
 from .goal_planner import (
-    ConfirmedPlan,
+    AvoidCommitment,
+    CurrentGoal,
+    CurrentPlan,
     PendingPlan,
     PlanDraft,
-    PlanRecord,
+    PracticeCommitment,
     ProfileDraft,
     ProposedCommitment,
     ProposedGoal,
@@ -11,11 +13,13 @@ from .goal_planner import (
 from .workload import GoalLoad, WeeklyLoad
 
 __all__ = [
-    "ConfirmedPlan",
+    "AvoidCommitment",
+    "CurrentGoal",
+    "CurrentPlan",
     "GoalLoad",
     "PendingPlan",
     "PlanDraft",
-    "PlanRecord",
+    "PracticeCommitment",
     "ProfileDraft",
     "ProposedCommitment",
     "ProposedGoal",

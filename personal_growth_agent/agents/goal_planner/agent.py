@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
@@ -22,8 +23,10 @@ from personal_growth_agent.common.exceptions import (
     LLMUnavailableException,
     PlannerFailedException,
 )
+from personal_growth_agent.database.model import CommitmentPeriod
 from personal_growth_agent.llm_models import LLMModel
 from personal_growth_agent.prompts import GOAL_PLANNER_SYSTEM_PROMPT
+from personal_growth_agent.schema import CurrentPlan, PracticeCommitment, ProposedCommitment
 
 from ..llm_client import PROVIDER_UNAVAILABLE_ERRORS, LLMClient
 from .context import GoalPlannerContext
@@ -34,10 +37,55 @@ MAX_PLAN_CALLS_PER_TURN = 3
 MAX_MODEL_CALLS_PER_TURN = 6
 
 
+def describe_commitment(commitment: ProposedCommitment) -> str:
+    if isinstance(commitment, PracticeCommitment):
+        text = (
+            f"{commitment.target:g} {commitment.unit}/{commitment.period} as "
+            f"{commitment.sessions} x {commitment.session}"
+        )
+        return f"{text}, ~{commitment.minutes} min each" if commitment.minutes else text
+    if commitment.period == CommitmentPeriod.DAY:
+        return f'avoid "{commitment.rule}", every day'
+    return f'avoid "{commitment.rule}", {commitment.target} days/week'
+
+
+def describe_current_plan(plan: CurrentPlan) -> str:
+    if not plan.goals:
+        return "No confirmed plan yet. This is onboarding."
+    lines = []
+    for current in plan.goals:
+        goal = current.goal
+        line = (
+            f"[{current.ref}] {goal.title} ({goal.type}), priority {goal.priority}: "
+            f"{describe_commitment(goal.commitment)}. Why: {goal.why}"
+        )
+        if goal.target_date:
+            line += f". Target {goal.target_date}"
+        if goal.milestones:
+            line += ". Milestones: " + "; ".join(
+                f"{m.title} by {m.due_date}" for m in goal.milestones
+            )
+        lines.append(line)
+    if plan.profile:
+        p = plan.profile
+        lines.append(
+            f"Profile: {p.name}, reminder {p.reminder_time}, review {p.review_day}, "
+            f"time zone {p.timezone}"
+        )
+    return "\n".join(lines)
+
+
 @dynamic_prompt
-def system_prompt(request: ModelRequest) -> str:
-    today = date.today()
-    return GOAL_PLANNER_SYSTEM_PROMPT.format(today=today.isoformat(), weekday=today.strftime("%A"))
+async def system_prompt(request: ModelRequest[GoalPlannerContext]) -> str:
+    context = request.runtime.context
+    plan = await context.store.current(context.user_id)
+    zone = ZoneInfo(plan.profile.timezone) if plan.profile else ZoneInfo("UTC")
+    today = datetime.now(zone).date()
+    return GOAL_PLANNER_SYSTEM_PROMPT.format(
+        today=today.isoformat(),
+        weekday=today.strftime("%A"),
+        current_plan=describe_current_plan(plan),
+    )
 
 
 class GoalPlannerAgent(BaseModel):
