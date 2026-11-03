@@ -22,7 +22,7 @@ async def present_plan(plan: PlanDraft, runtime: ToolRuntime[GoalPlannerContext]
         await context.store.present(context.user_id, plan)
     except CustomException as error:
         raise ToolException(f"{error.detail}. Fix the plan and call present_plan again.")
-    load = weekly_load(plan)
+    load = weekly_load(plan.goals)
     per_goal = ", ".join(f"{g.title} {format_minutes(g.minutes)}" for g in load.goals if g.minutes)
     return (
         "Plan shown to the user as a card with a Confirm button.\n"

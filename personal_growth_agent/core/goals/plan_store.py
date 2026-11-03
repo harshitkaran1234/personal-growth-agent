@@ -101,29 +101,41 @@ def to_profile_draft(profile: Profile) -> ProfileDraft:
     return ProfileDraft(**profile.model_dump())
 
 
+def active_profile(user: User) -> Optional[Profile]:
+    if not user.is_onboarded or not user.name:
+        return None
+    return Profile(
+        name=user.name,
+        reminder_time=user.reminder_time,
+        review_day=user.review_day,
+        timezone=user.timezone,
+    )
+
+
+def goal_fields(goal: Goal) -> dict[str, Any]:
+    return goal.model_dump(include=GOAL_FIELDS, exclude={"milestones": {"__all__": {"id"}}})
+
+
+def is_goal_changed(draft: Goal, source: Goal) -> bool:
+    return goal_fields(draft) != goal_fields(source)
+
+
 class MongoPlanStore(BaseModel):
     async def current(self, user_id: str) -> CurrentPlan:
-        user = await self._user(ObjectId(user_id))
-        refs = await self._active_refs(user.id)
+        oid = ObjectId(user_id)
+        user = await self._user(oid)
+        refs = await self.active_goals(oid)
         goals = [CurrentGoal(ref=ref, goal=to_proposed(goal, ref)) for ref, goal in refs.items()]
-        profile = None
-        if user.is_onboarded and user.name:
-            profile = ProfileDraft(
-                name=user.name,
-                reminder_time=user.reminder_time,
-                review_day=user.review_day,
-                timezone=user.timezone,
-            )
-        return CurrentPlan(goals=goals, profile=profile)
+        profile = active_profile(user)
+        return CurrentPlan(goals=goals, profile=to_profile_draft(profile) if profile else None)
 
     async def pending(self, user_id: str) -> Optional[PendingPlan]:
-        user = await self._user(ObjectId(user_id))
-        drafts = await Goal.find_many(
-            {"user_id": user.id, "status": GoalStatus.DRAFT}, sort=[("priority", 1)]
-        )
+        oid = ObjectId(user_id)
+        user = await self._user(oid)
+        drafts = await self.draft_goals(oid)
         if not drafts or user.pending_profile is None:
             return None
-        ref_of = {goal.id: ref for ref, goal in (await self._active_refs(user.id)).items()}
+        ref_of = {goal.id: ref for ref, goal in (await self.active_goals(oid)).items()}
         goals = [to_proposed(d, ref_of.get(d.source_goal_id)) for d in drafts]
         plan = PlanDraft(goals=goals, profile=to_profile_draft(user.pending_profile))
         return PendingPlan(version=user.plan_version, plan=plan)
@@ -133,7 +145,7 @@ class MongoPlanStore(BaseModel):
 
         async def write(session: AsyncClientSession) -> PendingPlan:
             user = await self._user(oid, session)
-            refs = await self._active_refs(oid, session)
+            refs = await self.active_goals(oid, session)
             unknown = [g.ref for g in plan.goals if g.ref and g.ref not in refs]
             if unknown:
                 known = ", ".join(refs) or "none"
@@ -169,7 +181,7 @@ class MongoPlanStore(BaseModel):
                 raise ResourceNotFoundException("There is no plan waiting for confirmation")
             if version != user.plan_version:
                 raise InvalidRequestException(
-                    f"Plan version {version} is out of date; the latest is {user.plan_version}"
+                    f"Plan version {version} is not the latest; the latest is {user.plan_version}"
                 )
             kept = {d.source_goal_id for d in drafts if d.source_goal_id}
             now = int(time.time())
@@ -209,8 +221,8 @@ class MongoPlanStore(BaseModel):
         return user
 
     @staticmethod
-    async def _active_refs(
-        oid: Any, session: Optional[AsyncClientSession] = None
+    async def active_goals(
+        oid: ObjectId, session: Optional[AsyncClientSession] = None
     ) -> dict[str, Goal]:
         goals = await Goal.find_many(
             {"user_id": oid, "status": GoalStatus.ACTIVE},
@@ -218,6 +230,12 @@ class MongoPlanStore(BaseModel):
             session=session,
         )
         return {f"g{i}": goal for i, goal in enumerate(goals, start=1)}
+
+    @staticmethod
+    async def draft_goals(oid: ObjectId) -> list[Goal]:
+        return await Goal.find_many(
+            {"user_id": oid, "status": GoalStatus.DRAFT}, sort=[("priority", 1), ("_id", 1)]
+        )
 
     @staticmethod
     async def _transaction(callback: Callable[[AsyncClientSession], Awaitable[T]]) -> T:

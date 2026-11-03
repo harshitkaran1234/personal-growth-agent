@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from personal_growth_agent.agents.goal_planner import GoalPlannerAgent
 from personal_growth_agent.common import config, logger
-from personal_growth_agent.database import db_client, ensure_indexes
+from personal_growth_agent.database import build_checkpointer, db_client, ensure_indexes
 
 from .common.exception_handler import (
     base_exception_handler,
@@ -30,7 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     check_config()
     db_client.init()
     await ensure_indexes()
+    app.state.checkpointer = build_checkpointer()
+    app.state.goal_planner = GoalPlannerAgent(checkpointer=app.state.checkpointer)
     yield
+    app.state.checkpointer.close()
     await db_client.close()
     logger.info(f"Stopping {config.SERVICE_NAME}")
 

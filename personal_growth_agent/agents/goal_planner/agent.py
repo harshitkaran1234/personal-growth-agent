@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from langchain.agents import create_agent
@@ -26,7 +26,12 @@ from personal_growth_agent.common.exceptions import (
 from personal_growth_agent.database.model import CommitmentPeriod
 from personal_growth_agent.llm_models import LLMModel
 from personal_growth_agent.prompts import GOAL_PLANNER_SYSTEM_PROMPT
-from personal_growth_agent.schema import CurrentPlan, PracticeCommitment, ProposedCommitment
+from personal_growth_agent.schema import (
+    CurrentPlan,
+    PendingPlan,
+    PracticeCommitment,
+    ProposedCommitment,
+)
 
 from ..llm_client import PROVIDER_UNAVAILABLE_ERRORS, LLMClient
 from .context import GoalPlannerContext
@@ -35,6 +40,28 @@ from .tools import present_plan
 DEFAULT_LLM = LLMClient(model=LLMModel.CLAUDE_SONNET_5_5)
 MAX_PLAN_CALLS_PER_TURN = 3
 MAX_MODEL_CALLS_PER_TURN = 6
+APP_EVENT = "app_event"
+CONFIRMED_EVENT = "I pressed Confirm on the plan card."
+CONFIRMED_MESSAGE = "Your plan is saved. Tell me anytime you want to change it."
+PLAN_CARD_WAITING = (
+    "A card with your last proposed plan is waiting for the user to press Confirm. "
+    "It is not saved yet."
+)
+PLAN_CARD_SAVED = (
+    "No card is waiting. The user pressed Confirm, so the current plan above is saved. "
+    "Don't mention a card unless you call present_plan again."
+)
+PLAN_CARD_NONE = "No plan has been proposed yet."
+
+
+def planner_thread_id(user_id: str) -> str:
+    return f"planner:{user_id}"
+
+
+def describe_plan_card(plan: CurrentPlan, pending: Optional[PendingPlan]) -> str:
+    if pending:
+        return PLAN_CARD_WAITING
+    return PLAN_CARD_SAVED if plan.goals else PLAN_CARD_NONE
 
 
 def describe_commitment(commitment: ProposedCommitment) -> str:
@@ -79,12 +106,14 @@ def describe_current_plan(plan: CurrentPlan) -> str:
 async def system_prompt(request: ModelRequest[GoalPlannerContext]) -> str:
     context = request.runtime.context
     plan = await context.store.current(context.user_id)
+    pending = await context.store.pending(context.user_id)
     zone = ZoneInfo(plan.profile.timezone) if plan.profile else ZoneInfo("UTC")
     today = datetime.now(zone).date()
     return GOAL_PLANNER_SYSTEM_PROMPT.format(
         today=today.isoformat(),
         weekday=today.strftime("%A"),
         current_plan=describe_current_plan(plan),
+        plan_card=describe_plan_card(plan, pending),
     )
 
 
@@ -139,6 +168,10 @@ class GoalPlannerAgent(BaseModel):
         reply = result["messages"][-1]
         assert isinstance(reply, AIMessage)
         return reply
+
+    async def record_confirmed(self, thread_id: str) -> None:
+        messages = [HumanMessage(CONFIRMED_EVENT, name=APP_EVENT), AIMessage(CONFIRMED_MESSAGE)]
+        await self._graph.aupdate_state(self._config(thread_id), {"messages": messages})
 
     async def history(self, thread_id: str) -> list[BaseMessage]:
         state = await self._graph.aget_state(self._config(thread_id))

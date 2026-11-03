@@ -11,6 +11,7 @@ from personal_growth_agent.agents.goal_planner import (
     describe_current_plan,
     GoalPlannerAgent,
     GoalPlannerContext,
+    planner_thread_id,
 )
 from personal_growth_agent.common.exceptions import CustomException
 from personal_growth_agent.core.goals import MongoPlanStore, format_minutes, weekly_load
@@ -21,10 +22,6 @@ from personal_growth_agent.routes.v1.auth.email.controller.send_email_otp import
 from personal_growth_agent.schema import PendingPlan
 
 HELP = "/state  /plan  /confirm  /quit"
-
-
-def thread_for(user_id: str) -> str:
-    return f"planner:{user_id}"
 
 
 async def find_or_create_user(email: str) -> User:
@@ -48,7 +45,7 @@ async def reset_user(user: User, checkpointer: MongoDBSaver) -> None:
     await user.update(
         {"$set": {"is_onboarded": False, "plan_version": 0}, "$unset": {"pending_profile": ""}}
     )
-    await checkpointer.adelete_thread(thread_for(str(user.id)))
+    await checkpointer.adelete_thread(planner_thread_id(str(user.id)))
     await checkpointer.adelete_thread(f"onboarding:{user.id}")
 
 
@@ -66,7 +63,7 @@ def print_state(messages: list[BaseMessage]) -> None:
 
 
 def print_card(pending: PendingPlan) -> None:
-    load = weekly_load(pending.plan)
+    load = weekly_load(pending.plan.goals)
     print(f"\n=== plan card v{pending.version} [Confirm with /confirm] ===")
     print(pending.plan.model_dump_json(indent=2))
     print(f"weekly load: {format_minutes(load.total_minutes)}\n")
@@ -93,7 +90,7 @@ async def main() -> None:
 async def run(args: argparse.Namespace, checkpointer: MongoDBSaver) -> None:
     user = await find_or_create_user(args.email)
     user_id = str(user.id)
-    thread_id = thread_for(user_id)
+    thread_id = planner_thread_id(user_id)
     if args.reset:
         await reset_user(user, checkpointer)
         print(f"reset {user.email}: goals, chat and onboarding cleared\n")
@@ -142,6 +139,7 @@ async def run(args: argparse.Namespace, checkpointer: MongoDBSaver) -> None:
             pending = await store.pending(user_id)
             try:
                 activated = await store.confirm(user_id, pending.version if pending else 0)
+                await agent.record_confirmed(thread_id)
                 print(f"confirmed: {activated} goals in the plan\n")
             except CustomException as error:
                 print(f"cannot confirm: {error.detail}\n")

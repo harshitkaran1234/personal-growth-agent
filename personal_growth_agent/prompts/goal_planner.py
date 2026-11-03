@@ -8,6 +8,9 @@ Today is {weekday}, {today}.
 # Current plan
 {current_plan}
 
+# Plan card
+{plan_card}
+
 # What a finished plan contains
 For each goal:
 - Title: short and specific, e.g. "Learn system design", "Run a 10k".
